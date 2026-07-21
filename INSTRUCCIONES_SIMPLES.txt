@@ -1,0 +1,19 @@
+@echo off
+title QuitoDrive
+cd /d "%~dp0"
+
+echo.
+echo ==========================================
+echo       QUITODRIVE - INICIO AUTOMATICO
+echo ==========================================
+echo.
+
+"C:\Program Files\Python314\python.exe" -m pip install -r requirements.txt
+
+echo.
+echo Abriendo QuitoDrive...
+echo.
+
+"C:\Program Files\Python314\python.exe" -m streamlit run app_renta_de_autos.py
+
+pause
