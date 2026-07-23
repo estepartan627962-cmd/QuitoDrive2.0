@@ -70,11 +70,11 @@ st.markdown(
     """
     <style>
     :root{color-scheme:dark}
-    .stApp{background:linear-gradient(135deg,#050505,#111,#202020);color:#fff}
+    .stApp{background:linear-gradient(135deg,#050505,#111,#202020);color:#ffg}
     [data-testid="stHeader"]{background:rgba(5,5,5,.92)}
     [data-testid="stSidebar"]{background:#080808;border-right:1px solid #333}
-    [data-testid="stSidebar"] *{color:#fff}
-    h1,h2,h3,h4,p,label,span{color:#fff}
+    [data-testid="stSidebar"] *{color:#ffg}
+    h1,h2,h3,h4,p,label,span{color:#ffg}
     [data-testid="stMetric"]{background:#151515;border:1px solid #3a3a3a;border-radius:15px;padding:14px}
     [data-testid="stMetricLabel"],[data-testid="stMetricValue"]{color:#fff}
     [data-testid="stVerticalBlockBorderWrapper"]{
