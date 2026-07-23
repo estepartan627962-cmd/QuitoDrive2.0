@@ -4,12 +4,14 @@ import secrets
 import sqlite3
 import string
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from urllib.parse import quote
 
 import requests
 import streamlit as st
 
 DB = "quitodrive.db"
+BASE_DIR = Path(__file__).resolve().parent
 
 st.set_page_config(
     page_title="QuitoDrive",
@@ -190,6 +192,43 @@ st.markdown(
     .qd-section-head p {
         margin: .25rem 0 0;
         color: var(--qd-muted);
+    }
+
+    .qd-anchor-button {
+        display: block;
+        width: 100%;
+        padding: .85rem 1rem;
+        margin-top: .75rem;
+        border: 1px solid rgba(33,212,253,.36);
+        border-radius: 14px;
+        background: linear-gradient(90deg, rgba(33,212,253,.18), rgba(139,92,246,.22));
+        color: #ffffff !important;
+        font-weight: 800;
+        text-align: center;
+        text-decoration: none !important;
+        transition: transform .2s ease, border-color .2s ease;
+    }
+
+    .qd-anchor-button:hover {
+        transform: translateY(-2px);
+        border-color: rgba(33,212,253,.7);
+    }
+
+    .qd-scroll-nav a {
+        display: block;
+        padding: .68rem .8rem;
+        margin: .35rem 0;
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 12px;
+        background: rgba(255,255,255,.035);
+        color: #dce5ff !important;
+        text-decoration: none !important;
+        font-weight: 700;
+    }
+
+    .qd-scroll-nav a:hover {
+        background: rgba(33,212,253,.09);
+        border-color: rgba(33,212,253,.28);
     }
 
     .qd-pill {
@@ -571,7 +610,20 @@ def login_user(correo, password):
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
-def car_image(marca, modelo):
+def car_image(marca, modelo, placa=None):
+    # Prioriza las fotografías originales entregadas para QuitoDrive.
+    if placa:
+        for extension in (".jpg", ".jpeg", ".png", ".webp"):
+            filename = f"{placa}{extension}"
+            possible_paths = (
+                BASE_DIR / "imagenes_autos" / filename,
+                BASE_DIR / filename,
+            )
+            for image_path in possible_paths:
+                if image_path.exists():
+                    return str(image_path)
+
+    # Se conserva la conexión externa original únicamente como respaldo.
     params = {
         "action": "query",
         "format": "json",
@@ -762,9 +814,16 @@ def page_heading(title, subtitle, badge="QuitoDrive"):
     )
 
 
+def section_anchor(anchor_id):
+    st.markdown(
+        f'<div id="{anchor_id}" style="scroll-margin-top:80px;"></div>',
+        unsafe_allow_html=True,
+    )
+
+
 def show_car(car):
     st.image(
-        car_image(car["marca"], car["modelo"]),
+        car_image(car["marca"], car["modelo"], car["placa"]),
         caption=f"{car['marca']} {car['modelo']} — imagen referencial",
         use_container_width=True,
     )
@@ -805,7 +864,7 @@ def selected_car_panel(car):
 
     with photo:
         st.image(
-            car_image(car["marca"], car["modelo"]),
+            car_image(car["marca"], car["modelo"], car["placa"]),
             caption=f"{car['marca']} {car['modelo']} — imagen referencial",
             use_container_width=True,
         )
@@ -849,13 +908,10 @@ def selected_car_panel(car):
     with tab_reserve:
         if not st.session_state.user:
             st.warning("Debes iniciar sesión para completar la reservación.")
-            if st.button(
-                "Iniciar sesión y continuar",
-                type="primary",
-                use_container_width=True,
-            ):
-                st.session_state.page = "Ingresar"
-                st.rerun()
+            st.markdown(
+                '<a class="qd-anchor-button" href="#acceso">Ir a iniciar sesión</a>',
+                unsafe_allow_html=True,
+            )
             return
 
         st.markdown("#### Selecciona el periodo")
@@ -926,6 +982,7 @@ def selected_car_panel(car):
 
 
 def home():
+    section_anchor("inicio")
     st.markdown(
         """
         <section class="qd-hero">
@@ -988,6 +1045,7 @@ def home():
 
 
 def catalog():
+    section_anchor("catalogo")
     page_heading(
         "Catálogo de vehículos",
         "Filtra, compara y selecciona el auto que encaja con tu ruta.",
@@ -1050,6 +1108,7 @@ def catalog():
 
 
 def register():
+    section_anchor("registro")
     page_heading(
         "Crear cuenta",
         "Regístrate para reservar vehículos y administrar tus solicitudes.",
@@ -1097,6 +1156,7 @@ def register():
 
 
 def login():
+    section_anchor("acceso")
     page_heading(
         "Bienvenido de vuelta",
         "Inicia sesión para reservar y consultar tus solicitudes.",
@@ -1127,13 +1187,13 @@ def login():
             user = login_user(correo, password)
             if user:
                 st.session_state.user = user
-                st.session_state.page = "Catálogo"
                 st.rerun()
             else:
                 st.error("Correo o contraseña incorrectos.")
 
 
 def reservations():
+    section_anchor("reservaciones")
     page_heading(
         "Mis reservaciones",
         "Consulta el historial y los detalles de tus vehículos reservados.",
@@ -1143,9 +1203,10 @@ def reservations():
 
     if not rows:
         st.info("Todavía no tienes reservaciones. Visita el catálogo para comenzar.")
-        if st.button("Explorar vehículos", type="primary"):
-            st.session_state.page = "Catálogo"
-            st.rerun()
+        st.markdown(
+            '<a class="qd-anchor-button" href="#catalogo">Explorar vehículos</a>',
+            unsafe_allow_html=True,
+        )
         return
 
     total_value = sum(row["total"] for row in rows)
@@ -1161,7 +1222,7 @@ def reservations():
             c1, c2 = st.columns([1, 1.3], gap="large")
             with c1:
                 st.image(
-                    car_image(row["marca"], row["modelo"]),
+                    car_image(row["marca"], row["modelo"], row["placa"]),
                     caption="Imagen referencial",
                     use_container_width=True,
                 )
@@ -1181,7 +1242,6 @@ def main():
 
     st.session_state.setdefault("user", None)
     st.session_state.setdefault("selected_car_id", None)
-    st.session_state.setdefault("page", "Inicio")
 
     with st.sidebar:
         st.markdown(
@@ -1190,52 +1250,56 @@ def main():
                 <div class="qd-brand-title">🚗 QuitoDrive</div>
                 <div class="qd-brand-subtitle">Move smart. Drive free.</div>
             </div>
+            <div class="qd-scroll-nav">
+                <a href="#inicio">01 · Inicio</a>
+                <a href="#catalogo">02 · Catálogo</a>
+                <a href="#acceso">03 · Acceso</a>
+                <a href="#registro">04 · Registro</a>
+                <a href="#reservaciones">05 · Reservaciones</a>
+            </div>
             """,
             unsafe_allow_html=True,
         )
 
+        st.divider()
         if st.session_state.user:
             st.success(f"Hola, {st.session_state.user['nombre']}")
-            pages = ["Inicio", "Catálogo", "Mis reservaciones"]
+            if st.button("Cerrar sesión", use_container_width=True):
+                st.session_state.user = None
+                st.rerun()
         else:
-            pages = ["Inicio", "Catálogo", "Ingresar", "Registrarse"]
+            st.info("Desplázate hacia abajo para iniciar sesión o registrarte.")
 
-        if st.session_state.page not in pages:
-            st.session_state.page = "Inicio"
-
-        page = st.radio(
-            "Navegación",
-            pages,
-            index=pages.index(st.session_state.page),
-            label_visibility="collapsed",
-        )
-
-        if page != st.session_state.page:
-            st.session_state.page = page
-            st.rerun()
-
-        st.divider()
         st.caption("Reservaciones digitales · Atención en Quito")
 
-        if st.session_state.user and st.button(
-            "Cerrar sesión",
-            use_container_width=True,
-        ):
-            st.session_state.user = None
-            st.session_state.page = "Inicio"
-            st.rerun()
+    home()
+    st.divider()
+    catalog()
+    st.divider()
 
-    if st.session_state.page == "Inicio":
-        home()
-    elif st.session_state.page == "Catálogo":
-        catalog()
-    elif st.session_state.page == "Ingresar":
+    if st.session_state.user:
+        section_anchor("acceso")
+        st.success("Tu sesión está activa. Puedes reservar directamente desde el vehículo seleccionado.")
+        section_anchor("registro")
+        st.caption("El registro no se muestra porque ya tienes una sesión iniciada.")
+    else:
         login()
-    elif st.session_state.page == "Registrarse":
+        st.divider()
         register()
-    elif st.session_state.page == "Mis reservaciones":
+
+    st.divider()
+    if st.session_state.user:
         reservations()
+    else:
+        section_anchor("reservaciones")
+        page_heading(
+            "Mis reservaciones",
+            "Inicia sesión para consultar tu historial y los detalles de tus reservas.",
+            "Panel personal",
+        )
+        st.info("Esta sección estará disponible cuando inicies sesión.")
 
 
 if __name__ == "__main__":
     main()
+
